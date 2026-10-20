@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>縦書き教科書 ルビ振りリーダー</title>
+    <title>原本レイアウト維持 縦書き教科書ルビ振りアプリ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap');
 
         body {
             font-family: 'Zen Kaku Gothic New', sans-serif;
-            background-color: #f7f6f2;
-            color: #2b2b2b;
+            background-color: #1e1e24;
+            color: #e2e8f0;
         }
 
         .font-mincho {
@@ -22,195 +22,235 @@
         /* 縦書きのコアスタイル */
         .vertical-text {
             writing-mode: vertical-rl;
-            text-orientation: mixed;
+            text-orientation: upright;
             -webkit-writing-mode: vertical-rl;
             -ms-writing-mode: vertical-rl;
         }
 
-        /* ルビのスタイリング */
-        ruby {
-            ruby-align: space-around;
-        }
-
-        rt {
-            font-size: 0.55em;
-            color: #e53e3e; /* 見やすい赤朱色 */
-            font-weight: bold;
-            font-family: 'Zen Kaku Gothic New', sans-serif;
-        }
-
-        /* 縦書きコンテナのスクロール設定 */
-        .vertical-scroll {
-            overflow-x: auto;
-            overflow-y: hidden;
+        /* 画像オーバーレイ用ルビタグ */
+        .ruby-tag {
+            position: absolute;
+            transform: translate(50%, -50%);
             white-space: nowrap;
+            font-family: 'Zen Kaku Gothic New', sans-serif;
+            font-weight: 700;
+            color: #ef4444; /* 朱色 */
+            background-color: rgba(255, 255, 255, 0.92);
+            padding: 1px 3px;
+            border-radius: 4px;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            pointer-events: auto;
+            cursor: pointer;
+            z-index: 20;
+            font-size: 12px;
+            line-height: 1;
+            transition: all 0.2s ease;
         }
 
-        /* 和紙風背景テクスチャ */
-        .washi-bg {
-            background-color: #fbf9f5;
-            background-image: radial-gradient(#e5e0d8 0.75px, transparent 0.75px);
-            background-size: 12px 12px;
+        .ruby-tag:hover {
+            transform: translate(50%, -50%) scale(1.15);
+            background-color: #ffffff;
+            z-index: 30;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
         }
 
-        /* カスタムスクロールバー（横スクロール用） */
-        .vertical-scroll::-webkit-scrollbar {
+        /* 漢字バウンディングボックス指示子 */
+        .kanji-box {
+            position: absolute;
+            border: 2px solid rgba(239, 68, 68, 0.6);
+            background-color: rgba(239, 68, 68, 0.12);
+            border-radius: 3px;
+            pointer-events: none;
+            z-index: 10;
+            transition: opacity 0.2s;
+        }
+
+        /* カスタムスクロールバー */
+        ::-webkit-scrollbar {
+            width: 8px;
             height: 8px;
         }
-        .vertical-scroll::-webkit-scrollbar-track {
-            background: #eae6df;
+        ::-webkit-scrollbar-track {
+            background: #2d3748;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4a5568;
             border-radius: 4px;
         }
-        .vertical-scroll::-webkit-scrollbar-thumb {
-            background: #a8a29e;
-            border-radius: 4px;
-        }
-        .vertical-scroll::-webkit-scrollbar-thumb:hover {
-            background: #78716c;
+        ::-webkit-scrollbar-thumb:hover {
+            background: #718096;
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col justify-between">
 
-    <header class="bg-stone-800 text-stone-100 shadow-md sticky top-0 z-50">
-        <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+    <!-- ヘッダー -->
+    <header class="bg-stone-900 border-b border-stone-800 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
             <div class="flex items-center space-x-3">
-                <i class="ri-book-read-line text-2xl text-amber-400"></i>
-                <h1 class="text-xl font-bold font-mincho tracking-wider">縦書きルビえもん</h1>
+                <div class="bg-gradient-to-br from-amber-500 to-red-600 p-2 rounded-xl text-white shadow-lg">
+                    <i class="ri-book-open-line text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold font-mincho text-amber-100 tracking-wider">教科書原本ルビ振りリーダー</h1>
+                    <p class="text-xs text-stone-400">写真のレイアウトそのままに、漢字の横へ自動ルビ表示</p>
+                </div>
             </div>
-            <div class="text-xs text-stone-400 hidden sm:block">
-                国語教科書・古文・漢文の読み取りとルビ振り
+            <div class="flex items-center space-x-2">
+                <span class="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full flex items-center">
+                    <i class="ri-scan-2-line mr-1"></i> レイアウト解析モード
+                </span>
             </div>
         </div>
     </header>
 
-    <main class="flex-1 max-w-6xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- メインコンテンツ -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-        <!-- 左側：入力・カメラコントロールエリア (5/12) -->
-        <section class="lg:col-span-5 flex flex-col space-y-4">
+        <!-- 左側：ファイル操作・設定パネル (4/12) -->
+        <section class="lg:col-span-4 flex flex-col space-y-4">
             
-            <!-- カメラ / 画像撮影カード -->
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-stone-200">
-                <h2 class="text-lg font-bold mb-3 text-stone-700 flex items-center">
-                    <i class="ri-camera-fill mr-2 text-amber-600"></i> 教科書を撮影・選択
+            <!-- カメラ・ファイル読み込み -->
+            <div class="bg-stone-900 border border-stone-800 p-5 rounded-2xl shadow-xl">
+                <h2 class="text-base font-bold mb-3 text-amber-200 flex items-center">
+                    <i class="ri-camera-lens-fill mr-2 text-amber-500"></i> 教科書の写真を撮影・入力
                 </h2>
 
-                <!-- プレビュー／カメラエリア -->
-                <div id="image-container" class="relative w-full h-56 bg-stone-100 rounded-xl overflow-hidden border-2 border-dashed border-stone-300 flex flex-col justify-center items-center group">
-                    <img id="image-preview" class="absolute inset-0 w-full h-full object-contain hidden" alt="撮影プレビュー">
-                    
-                    <div id="upload-placeholder" class="text-center p-4">
-                        <i class="ri-image-add-line text-4xl text-stone-400 mb-2 block"></i>
-                        <p class="text-sm text-stone-600 font-medium">写真を撮るかファイルを選択</p>
-                        <p class="text-xs text-stone-400 mt-1">縦書きテキストが含まれる画像をアップロード</p>
-                    </div>
-
-                    <!-- 読み込み中オーバーレイ -->
-                    <div id="ocr-loading" class="absolute inset-0 bg-stone-900/70 text-white flex flex-col items-center justify-center hidden backdrop-blur-sm">
-                        <div class="animate-spin rounded-full h-10 w-10 border-4 border-amber-400 border-t-transparent mb-3"></div>
-                        <p class="text-sm font-semibold">文字を解析中...</p>
-                        <p class="text-xs text-stone-300 mt-1">縦書きレイアウトを検出しています</p>
-                    </div>
-                </div>
-
-                <!-- アクションボタン -->
-                <div class="grid grid-cols-2 gap-3 mt-4">
-                    <label class="cursor-pointer bg-amber-500 hover:bg-amber-600 text-white font-medium py-2.5 px-4 rounded-xl flex items-center justify-center text-sm transition shadow-sm">
-                        <i class="ri-camera-3-line mr-2 text-lg"></i>
-                        <span>写真を撮る</span>
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <label class="cursor-pointer bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-stone-950 font-bold py-3 px-4 rounded-xl flex flex-col items-center justify-center text-xs transition shadow-lg group">
+                        <i class="ri-camera-fill text-2xl mb-1 group-hover:scale-110 transition-transform"></i>
+                        <span>カメラで撮影</span>
                         <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden">
                     </label>
-                    <label class="cursor-pointer bg-stone-700 hover:bg-stone-800 text-white font-medium py-2.5 px-4 rounded-xl flex items-center justify-center text-sm transition shadow-sm">
-                        <i class="ri-folder-open-line mr-2 text-lg"></i>
+                    <label class="cursor-pointer bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold py-3 px-4 rounded-xl flex flex-col items-center justify-center text-xs transition border border-stone-700 group">
+                        <i class="ri-image-add-fill text-2xl mb-1 text-amber-400 group-hover:scale-110 transition-transform"></i>
                         <span>画像を選択</span>
                         <input type="file" id="file-input" accept="image/*" class="hidden">
                     </label>
                 </div>
 
-                <!-- サンプル画像ボタン -->
-                <div class="mt-3 pt-3 border-t border-stone-100 flex items-center justify-between text-xs text-stone-500">
-                    <span>サンプルで試す:</span>
-                    <div class="space-x-1">
-                        <button onclick="loadSample(1)" class="px-2 py-1 bg-stone-100 hover:bg-stone-200 rounded text-stone-700 font-medium transition">走れメロス</button>
-                        <button onclick="loadSample(2)" class="px-2 py-1 bg-stone-100 hover:bg-stone-200 rounded text-stone-700 font-medium transition">竹取物語</button>
+                <!-- サンプル画像切り替え -->
+                <div class="pt-3 border-t border-stone-800">
+                    <p class="text-xs text-stone-400 mb-2 font-medium">教科書サンプルで試す:</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="loadSampleImage('kokugo1')" class="px-3 py-2 bg-stone-800 hover:bg-stone-700 rounded-lg text-xs text-stone-300 flex items-center justify-center border border-stone-700/50 transition">
+                            <i class="ri-file-text-line mr-1 text-amber-400"></i> 「走れメロス」
+                        </button>
+                        <button onclick="loadSampleImage('kokugo2')" class="px-3 py-2 bg-stone-800 hover:bg-stone-700 rounded-lg text-xs text-stone-300 flex items-center justify-center border border-stone-700/50 transition">
+                            <i class="ri-file-text-line mr-1 text-amber-400"></i> 「竹取物語」
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- 手動テキスト入力／検出結果編集 -->
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-stone-200 flex-1 flex flex-col">
-                <div class="flex justify-between items-center mb-2">
-                    <h2 class="text-lg font-bold text-stone-700 flex items-center">
-                        <i class="ri-edit-line mr-2 text-amber-600"></i> テキスト編集
-                    </h2>
-                    <button id="clear-btn" class="text-xs text-stone-400 hover:text-red-500 transition">
-                        <i class="ri-delete-bin-line mr-1"></i>消去
-                    </button>
+            <!-- 表示調整パネル -->
+            <div class="bg-stone-900 border border-stone-800 p-5 rounded-2xl shadow-xl space-y-4">
+                <h2 class="text-base font-bold text-amber-200 flex items-center">
+                    <i class="ri-settings-4-line mr-2 text-amber-500"></i> ルビ表示カスタマイズ
+                </h2>
+
+                <!-- ルビ文字サイズ調整 -->
+                <div>
+                    <div class="flex justify-between text-xs text-stone-300 mb-1">
+                        <span>ルビ文字サイズ</span>
+                        <span id="font-size-val" class="font-bold text-amber-400">12px</span>
+                    </div>
+                    <input type="range" id="font-size-slider" min="9" max="22" value="12" class="w-full accent-amber-500 bg-stone-800 rounded-lg cursor-pointer h-2">
                 </div>
-                <textarea id="text-input" rows="6" class="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none resize-none text-sm leading-relaxed text-stone-800" placeholder="撮影した画像から検出された文章がここに表示されます。直接打ち込んでルビを振ることもできます。"></textarea>
-                <button id="process-btn" class="mt-3 w-full bg-stone-800 hover:bg-stone-900 text-white font-medium py-2.5 px-4 rounded-xl flex items-center justify-center text-sm transition">
-                    <i class="ri-text-spacing mr-2 text-amber-400"></i>
-                    <span>ルビを最新化する</span>
-                </button>
+
+                <!-- ルビ文字色選択 -->
+                <div>
+                    <label class="block text-xs text-stone-300 mb-2">ルビの色</label>
+                    <div class="flex items-center space-x-3">
+                        <button onclick="setRubyColor('#ef4444')" class="w-8 h-8 rounded-full bg-red-500 border-2 border-white shadow-md focus:ring-2 focus:ring-red-400 transition" title="朱色"></button>
+                        <button onclick="setRubyColor('#2563eb')" class="w-8 h-8 rounded-full bg-blue-600 border-2 border-transparent hover:border-white shadow-md focus:ring-2 focus:ring-blue-400 transition" title="群青"></button>
+                        <button onclick="setRubyColor('#059669')" class="w-8 h-8 rounded-full bg-emerald-600 border-2 border-transparent hover:border-white shadow-md focus:ring-2 focus:ring-emerald-400 transition" title="常盤色"></button>
+                        <button onclick="setRubyColor('#18181b')" class="w-8 h-8 rounded-full bg-stone-900 border-2 border-stone-600 hover:border-white shadow-md focus:ring-2 focus:ring-stone-400 transition" title="墨色"></button>
+                    </div>
+                </div>
+
+                <!-- 枠線表示トグル -->
+                <div class="flex items-center justify-between pt-2 border-t border-stone-800">
+                    <span class="text-xs text-stone-300">漢字の位置（赤枠）を表示</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="toggle-boxes" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-stone-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 検出漢字リスト一覧 -->
+            <div class="bg-stone-900 border border-stone-800 p-5 rounded-2xl shadow-xl flex-1 flex flex-col min-h-[220px]">
+                <h2 class="text-sm font-bold text-stone-300 mb-2 flex justify-between items-center">
+                    <span><i class="ri-list-check-2 mr-1 text-amber-500"></i> 検出された漢字とルビ</span>
+                    <span id="kanji-count" class="text-xs bg-stone-800 text-amber-400 px-2 py-0.5 rounded-full font-mono">0件</span>
+                </h2>
+                <div id="kanji-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1 max-h-[240px] text-xs">
+                    <p class="text-stone-500 text-center py-6">写真を読み込むとここに検出された漢字とルビの一覧が表示されます。</p>
+                </div>
             </div>
 
         </section>
 
-        <!-- 右側：縦書き表示エリア (7/12) -->
-        <section class="lg:col-span-7 flex flex-col">
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-stone-200 flex-1 flex flex-col h-full min-h-[500px]">
+        <!-- 右側：写真原本＆ルビオーバーレイ・ビューワー (8/12) -->
+        <section class="lg:col-span-8 flex flex-col">
+            <div class="bg-stone-900 border border-stone-800 p-4 rounded-2xl shadow-2xl flex-1 flex flex-col h-full relative overflow-hidden">
                 
-                <!-- ツールバー -->
-                <div class="flex flex-wrap justify-between items-center pb-4 mb-4 border-b border-stone-200 gap-2">
+                <!-- ビューワーヘッダー -->
+                <div class="flex justify-between items-center pb-3 mb-3 border-b border-stone-800">
                     <div class="flex items-center space-x-2">
-                        <i class="ri-book-open-line text-amber-600 text-xl"></i>
-                        <h2 class="text-lg font-bold font-mincho text-stone-800">縦書きルビ表示</h2>
+                        <i class="ri-image-line text-amber-500 text-lg"></i>
+                        <h3 class="text-sm font-bold text-stone-200">原本写真ビューワー</h3>
+                        <span class="text-xs text-stone-500">（漢字の右横に赤色のルビを表示中）</span>
                     </div>
-
-                    <!-- 表示コントロール -->
-                    <div class="flex items-center space-x-3 text-xs">
-                        <!-- 文字サイズ -->
-                        <div class="flex items-center bg-stone-100 rounded-lg p-1">
-                            <button id="font-decrease" class="w-7 h-7 flex items-center justify-center text-stone-600 hover:bg-white rounded transition"><i class="ri-subtract-line"></i></button>
-                            <span id="font-size-label" class="px-2 font-medium text-stone-700">20px</span>
-                            <button id="font-increase" class="w-7 h-7 flex items-center justify-center text-stone-600 hover:bg-white rounded transition"><i class="ri-add-line"></i></button>
-                        </div>
-
-                        <!-- ルビ色切り替え -->
-                        <div class="flex items-center space-x-1 bg-stone-100 rounded-lg p-1">
-                            <button onclick="setRubyColor('#e53e3e')" class="w-5 h-5 rounded-full bg-red-600 border border-white shadow-sm" title="赤ルビ"></button>
-                            <button onclick="setRubyColor('#2b6cb0')" class="w-5 h-5 rounded-full bg-blue-600 border border-white shadow-sm" title="青ルビ"></button>
-                            <button onclick="setRubyColor('#2f855a')" class="w-5 h-5 rounded-full bg-green-600 border border-white shadow-sm" title="緑ルビ"></button>
-                            <button onclick="setRubyColor('#4a5568')" class="w-5 h-5 rounded-full bg-gray-600 border border-white shadow-sm" title="黒ルビ"></button>
-                        </div>
+                    <div class="flex items-center space-x-2">
+                        <button id="zoom-in" class="p-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-lg text-xs transition" title="拡大"><i class="ri-zoom-in-line text-sm"></i></button>
+                        <button id="zoom-out" class="p-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-lg text-xs transition" title="縮小"><i class="ri-zoom-out-line text-sm"></i></button>
+                        <button id="reset-zoom" class="px-2.5 py-1 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-lg text-xs transition">リセット</button>
                     </div>
                 </div>
 
-                <!-- 縦書き表示本体（和紙風背景） -->
-                <div class="flex-1 washi-bg rounded-xl border border-stone-200 p-6 relative overflow-hidden flex justify-end">
+                <!-- 写真とルビの重ね合わせエリア -->
+                <div class="flex-1 relative w-full h-full min-h-[550px] bg-stone-950 rounded-xl overflow-auto flex items-center justify-center p-2 border border-stone-800/80" id="viewport-container">
                     
-                    <!-- 空状態のアラート -->
-                    <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-stone-400 p-6 text-center">
-                        <i class="ri-book-2-line text-5xl mb-3 text-stone-300"></i>
-                        <p class="font-mincho text-lg text-stone-500">教科書の写真を撮るか、<br>左側のエリアにテキストを入力してください</p>
-                        <p class="text-xs text-stone-400 mt-2">右から左へと流れる縦書きでルビが付きます</p>
+                    <!-- プレースホルダー（未選択時） -->
+                    <div id="empty-placeholder" class="text-center p-8 text-stone-500 max-w-sm">
+                        <div class="w-16 h-16 bg-stone-800/60 rounded-full flex items-center justify-center mx-auto mb-4 border border-stone-700">
+                            <i class="ri-file-search-line text-3xl text-amber-500"></i>
+                        </div>
+                        <p class="font-bold text-stone-300 mb-1">国語教科書の写真を読み込んでください</p>
+                        <p class="text-xs text-stone-500">写真を解析し、レイアウトを変更せずにそのまま漢字の横にルビをオーバーレイ表示します。</p>
                     </div>
 
-                    <!-- 縦書きスクロールコンテナ -->
-                    <div id="vertical-output-container" class="w-full h-full vertical-scroll hidden flex justify-end">
-                        <div id="vertical-output" class="vertical-text font-mincho leading-loose tracking-widest text-stone-900 p-4 min-h-full" style="font-size: 20px;">
-                            <!-- 動的に生成されたルビ付きHTMLが入ります -->
+                    <!-- スキャンアニメーション表示 -->
+                    <div id="scanning-overlay" class="absolute inset-0 bg-stone-950/80 z-40 backdrop-blur-sm flex flex-col items-center justify-center hidden">
+                        <div class="relative w-20 h-20 mb-4">
+                            <div class="absolute inset-0 border-4 border-amber-500/20 rounded-full"></div>
+                            <div class="absolute inset-0 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                            <i class="ri-scan-2-line text-2xl text-amber-400 absolute inset-0 flex items-center justify-center"></i>
                         </div>
+                        <p class="text-sm font-bold text-stone-200">教科書写真を解析中...</p>
+                        <p class="text-xs text-stone-400 mt-1">縦書きレイアウトと漢字の位置情報を抽出しています</p>
+                    </div>
+
+                    <!-- 原本写真およびルビ合成用ラッパー -->
+                    <div id="canvas-wrapper" class="relative inline-block transition-transform duration-150 origin-center hidden shadow-2xl">
+                        <!-- バックグラウンド写真画像 -->
+                        <img id="source-image" class="block max-w-full h-auto rounded-lg shadow-inner select-none" alt="教科書原本">
+                        
+                        <!-- 漢字ボックス描画用オーバーレイ -->
+                        <div id="box-overlay" class="absolute inset-0 pointer-events-none"></div>
+
+                        <!-- ルビ文字描画用オーバーレイ -->
+                        <div id="ruby-overlay" class="absolute inset-0 pointer-events-none"></div>
                     </div>
 
                 </div>
 
-                <!-- フッター操作説明 -->
-                <div class="mt-4 flex justify-between items-center text-xs text-stone-500">
-                    <span class="flex items-center"><i class="ri-information-line mr-1"></i> スクロールで右から左へ移動できます</span>
-                    <button id="copy-btn" class="hover:text-amber-600 font-medium transition flex items-center">
-                        <i class="ri-file-copy-line mr-1"></i>テキストをコピー
-                    </button>
+                <div class="mt-3 flex justify-between items-center text-xs text-stone-500">
+                    <span class="flex items-center"><i class="ri-information-line mr-1 text-amber-500"></i> ルビタグをクリックすると手動で読み方を修正できます</span>
+                    <span id="image-dimensions" class="font-mono">--- x --- px</span>
                 </div>
 
             </div>
@@ -218,279 +258,330 @@
 
     </main>
 
-    <div id="toast" class="fixed bottom-5 right-5 bg-stone-800 text-white px-4 py-2 rounded-xl text-sm shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none flex items-center space-x-2">
-        <i class="ri-checkbox-circle-fill text-green-400 text-lg"></i>
-        <span id="toast-msg">通知メッセージ</span>
+    <!-- トースト通知 -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-stone-800 border border-stone-700 text-stone-100 px-4 py-3 rounded-xl text-xs shadow-2xl transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none flex items-center space-x-2 z-50">
+        <i id="toast-icon" class="ri-checkbox-circle-fill text-emerald-400 text-base"></i>
+        <span id="toast-msg">操作が完了しました</span>
     </div>
 
     <script>
-        // Dictionary for Kanji to Hiragana conversion (Client-side mock dictionary for common textbook kanji)
-        // 実運用ではKuromoji.jsや外部API（Furigana API）などを組み込む拡張が可能です。
-        const MOCK_DICTIONARY = {
-            "走れメロス": "はしれメロス",
-            "メロスは": "メロスは",
-            "激怒した": "げきどした",
-            "必ず": "かならず",
-            "邪智": "じゃち",
-            "暴虐": "ぼうぎゃく",
-            "王": "おう",
-            "除かなければ": "のぞかなければ",
-            "決意した": "けついした",
-            "竹取物語": "たけとりものがたり",
-            "いまは": "いまは",
-            "昔": "むかし",
-            "竹取": "たけとり",
-            "翁": "おきな",
-            "いふ": "いふ",
-            "もの": "もの",
-            "ありけり": "ありけり",
-            "野山": "のやま",
-            "まじりて": "まじりて",
-            "竹を": "たけを",
-            "取りつつ": "とりつつ",
-            "よろづの": "よろづの",
-            "事に": "ことに",
-            "使ひけり": "つかいけり",
-            "国語": "こくご",
-            "教科書": "きょうかしょ",
-            "縦書き": "たてがき",
-            "学習": "がくしゅう",
-            "読解": "どっかい",
-            "漢字": "かんじ",
-            "振り仮名": "ふりがな",
-            "文章": "ぶんしょう",
-            "学校": "がっこう",
-            "先生": "せんせい",
-            "児童": "じどう",
-            "生徒": "せいと"
+        // 国語教科書の疑似データ（縦書き位置座標付き）
+        // x, y は画像内での相対パーセンテージ位置 (%)
+        const MOCK_TEXTBOOK_DATA = {
+            "kokugo1": {
+                // 「走れメロス」風教科書画像
+                bgUrl: "https://placehold.co/800x1100/f5f2eb/2b2b2b?text=%E8%B5%B0%E3%82%8C%E3%83%A1%E3%83%AD%E3%82%B9%0A%E5%A4%AA%E5%AE%B0%E6%B2%BB%0A%0A%E3%83%A1%E3%83%AD%E3%82%B9%E3%81%AF%E激%E怒%E3%81%97%E3%81%9F%E3%80%82%0A%E必%E3%81%9A%E3%80%81%E3%81%8B%E3%81%AE%E邪%E智%E暴%E虐%E3%81%AE%E王%0A%E3%82%92%E除%E3%81%8B%E3%81%AA%E3%81%91%E3%82%8C%E3%81%B0%E3%81%AA%E3%82%89%E3%81%AC%0A%E3%81%A8%E決%E意%E3%81%97%E3%81%9F%E3%80%82",
+                title: "走れメロス",
+                items: [
+                    { kanji: "走", ruby: "はし", x: 80.5, y: 12.0, w: 6.2, h: 5.5 },
+                    { kanji: "太", ruby: "たい", x: 70.0, y: 11.5, w: 5.8, h: 5.0 },
+                    { kanji: "宰", ruby: "さい", x: 70.0, y: 18.0, w: 5.8, h: 5.0 },
+                    { kanji: "治", ruby: "おさむ", x: 70.0, y: 24.2, w: 5.8, h: 5.0 },
+                    { kanji: "激", ruby: "げき", x: 55.2, y: 32.0, w: 5.5, h: 4.8 },
+                    { kanji: "怒", ruby: "ど", x: 55.2, y: 38.0, w: 5.5, h: 4.8 },
+                    { kanji: "必", ruby: "かなら", x: 44.8, y: 14.5, w: 5.5, h: 4.8 },
+                    { kanji: "邪", ruby: "じゃ", x: 44.8, y: 41.2, w: 5.5, h: 4.8 },
+                    { kanji: "智", ruby: "ち", x: 44.8, y: 47.0, w: 5.5, h: 4.8 },
+                    { kanji: "暴", ruby: "ぼう", x: 44.8, y: 53.0, w: 5.5, h: 4.8 },
+                    { kanji: "虐", ruby: "ぎゃく", x: 44.8, y: 59.0, w: 5.5, h: 4.8 },
+                    { kanji: "王", ruby: "おう", x: 44.8, y: 70.5, w: 5.5, h: 4.8 },
+                    { kanji: "除", ruby: "のぞ", x: 34.2, y: 22.0, w: 5.5, h: 4.8 },
+                    { kanji: "決", ruby: "けつ", x: 34.2, y: 68.0, w: 5.5, h: 4.8 },
+                    { kanji: "意", ruby: "い", x: 34.2, y: 74.0, w: 5.5, h: 4.8 },
+                    { kanji: "政", ruby: "せい", x: 23.5, y: 25.0, w: 5.5, h: 4.8 },
+                    { kanji: "治", ruby: "じ", x: 23.5, y: 31.0, w: 5.5, h: 4.8 },
+                    { kanji: "村", ruby: "むら", x: 23.5, y: 62.0, w: 5.5, h: 4.8 },
+                    { kanji: "牧", ruby: "ぼく", x: 23.5, y: 72.0, w: 5.5, h: 4.8 },
+                    { kanji: "人", ruby: "じん", x: 23.5, y: 78.0, w: 5.5, h: 4.8 }
+                ]
+            },
+            "kokugo2": {
+                // 「竹取物語」古文教科書画像
+                bgUrl: "https://placehold.co/800x1100/f8f5ee/1a1a1a?text=%E7%AB%B9%E5%8F%96%E7%89%A9%E8%AA%9E%0A%0A%E3%81%84%E3%81%BE%E3%81%AF%E6%98%94%E3%80%81%E7%AB%B9%E5%8F%96%E3%81%AE%E1%B8%A0%E3%81%A8%E3%81%84%E3%81%B5%E3%82%82%E3%81%AE%E3%81%82%E3%82%8A%E3%81%91%E3%82%8A%E3%80%82%0A%E9%87%8E%E5%B1%B1%E3%81%AB%E3%81%BE%E3%81%98%E3%82%8A%E3%81%A6%E7%AB%B9%E3%82%92%E5%8F%96%E3%82%8A%E3%81%A4%E3%81%A4%E3%80%81%0A%E3%82%88%E3%82%8D%E3%81%A5%E3%81%AE%E4%BA%8B%E3%81%AB%E4%BD%BF%E3%81%B2%E3%81%91%E3%82%8A%E3%80%82",
+                title: "竹取物語",
+                items: [
+                    { kanji: "竹", ruby: "たけ", x: 78.0, y: 12.0, w: 6.0, h: 5.2 },
+                    { kanji: "取", ruby: "とり", x: 78.0, y: 18.5, w: 6.0, h: 5.2 },
+                    { kanji: "物", ruby: "もの", x: 78.0, y: 25.0, w: 6.0, h: 5.2 },
+                    { kanji: "語", ruby: "がたり", x: 78.0, y: 31.5, w: 6.0, h: 5.2 },
+                    { kanji: "昔", ruby: "むかし", x: 62.0, y: 28.0, w: 5.5, h: 4.8 },
+                    { kanji: "竹", ruby: "たけ", x: 62.0, y: 40.0, w: 5.5, h: 4.8 },
+                    { kanji: "取", ruby: "とり", x: 62.0, y: 46.0, w: 5.5, h: 4.8 },
+                    { kanji: "翁", ruby: "おきな", x: 62.0, y: 56.0, w: 5.5, h: 4.8 },
+                    { kanji: "野", ruby: "の", x: 48.0, y: 12.0, w: 5.5, h: 4.8 },
+                    { kanji: "山", ruby: "やま", x: 48.0, y: 18.0, w: 5.5, h: 4.8 },
+                    { kanji: "竹", ruby: "たけ", x: 48.0, y: 43.0, w: 5.5, h: 4.8 },
+                    { kanji: "取", ruby: "とり", x: 48.0, y: 53.0, w: 5.5, h: 4.8 },
+                    { kanji: "事", ruby: "こと", x: 34.0, y: 30.0, w: 5.5, h: 4.8 },
+                    { kanji: "使", ruby: "つか", x: 34.0, y: 42.0, w: 5.5, h: 4.8 },
+                    { kanji: "名", ruby: "な", x: 20.0, y: 12.0, w: 5.5, h: 4.8 },
+                    { kanji: "造", ruby: "みやつこ", x: 20.0, y: 36.0, w: 5.5, h: 4.8 }
+                ]
+            }
         };
 
-        // サンプルデータ
-        const SAMPLE_TEXTS = {
-            1: "走れメロス\n太宰治\n\nメロスは激怒した。必ず、かの邪智暴虐の王を除かなければならぬと決意した。メロスには政治がわからぬ。メロスは、村の牧人である。笛を吹き、羊と遊んで暮して来た。けれども邪悪に対しては、人一倍に敏感であった。",
-            2: "竹取物語\n\nいまは昔、竹取の翁といふものありけり。野山にまじりて竹を取りつつ、よろづの事に使ひけり。名をば、さぬきの造となむいひける。その竹の中に、もと光る竹なむ一筋ありける。あやしがりて、寄りて見るに、筒の中光りたり。それを見れば、三寸ばかりなる人、いとうつくしうてゐたり。"
-        };
-
-        // UI Element References
+        // UI Element Reference
         const cameraInput = document.getElementById('camera-input');
         const fileInput = document.getElementById('file-input');
-        const imagePreview = document.getElementById('image-preview');
-        const uploadPlaceholder = document.getElementById('upload-placeholder');
-        const ocrLoading = document.getElementById('ocr-loading');
-        const textInput = document.getElementById('text-input');
-        const processBtn = document.getElementById('process-btn');
-        const verticalOutput = document.getElementById('vertical-output');
-        const verticalOutputContainer = document.getElementById('vertical-output-container');
-        const emptyState = document.getElementById('empty-state');
-        const clearBtn = document.getElementById('clear-btn');
-        const fontIncrease = document.getElementById('font-increase');
-        const fontDecrease = document.getElementById('font-decrease');
-        const fontSizeLabel = document.getElementById('font-size-label');
-        const copyBtn = document.getElementById('copy-btn');
+        const emptyPlaceholder = document.getElementById('empty-placeholder');
+        const scanningOverlay = document.getElementById('scanning-overlay');
+        const canvasWrapper = document.getElementById('canvas-wrapper');
+        const sourceImage = document.getElementById('source-image');
+        const boxOverlay = document.getElementById('box-overlay');
+        const rubyOverlay = document.getElementById('ruby-overlay');
+        const fontSlider = document.getElementById('font-size-slider');
+        const fontSizeVal = document.getElementById('font-size-val');
+        const toggleBoxes = document.getElementById('toggle-boxes');
+        const kanjiList = document.getElementById('kanji-list');
+        const kanjiCount = document.getElementById('kanji-count');
+        const imageDimensions = document.getElementById('image-dimensions');
 
-        let currentFontSize = 20;
+        // Zoom Elements
+        const zoomInBtn = document.getElementById('zoom-in');
+        const zoomOutBtn = document.getElementById('zoom-out');
+        const resetZoomBtn = document.getElementById('reset-zoom');
+
+        // App State
+        let currentDetectedData = [];
+        let currentRubyColor = '#ef4444';
+        let currentRubyFontSize = 12;
+        let showBoundingBoxes = true;
+        let zoomLevel = 1.0;
 
         // --- Event Listeners ---
 
-        // カメラ・ファイル選択イベント
-        cameraInput.addEventListener('change', handleImageUpload);
-        fileInput.addEventListener('change', handleImageUpload);
+        cameraInput.addEventListener('change', handleFileSelect);
+        fileInput.addEventListener('change', handleFileSelect);
 
-        // テキスト処理
-        processBtn.addEventListener('change', () => generateVerticalFurigana());
-        processBtn.addEventListener('click', () => {
-            generateVerticalFurigana();
-            showToast('ルビを更新しました');
+        fontSlider.addEventListener('input', (e) => {
+            currentRubyFontSize = parseInt(e.target.value);
+            fontSizeVal.textContent = `${currentRubyFontSize}px`;
+            updateRubyStyles();
         });
 
-        // テキストクリア
-        clearBtn.addEventListener('click', () => {
-            textInput.value = '';
-            imagePreview.src = '';
-            imagePreview.classList.add('hidden');
-            uploadPlaceholder.classList.remove('hidden');
-            generateVerticalFurigana();
-            showToast('内容をクリアしました');
+        toggleBoxes.addEventListener('change', (e) => {
+            showBoundingBoxes = e.target.checked;
+            boxOverlay.style.display = showBoundingBoxes ? 'block' : 'none';
         });
 
-        // フォントサイズ変更
-        fontIncrease.addEventListener('click', () => {
-            if (currentFontSize < 36) {
-                currentFontSize += 2;
-                updateFontSize();
+        // ズームコントロール
+        zoomInBtn.addEventListener('click', () => {
+            if (zoomLevel < 2.0) {
+                zoomLevel += 0.25;
+                applyZoom();
             }
         });
 
-        fontDecrease.addEventListener('click', () => {
-            if (currentFontSize > 12) {
-                currentFontSize -= 2;
-                updateFontSize();
+        zoomOutBtn.addEventListener('click', () => {
+            if (zoomLevel > 0.5) {
+                zoomLevel -= 0.25;
+                applyZoom();
             }
         });
 
-        // クリップボードコピー
-        copyBtn.addEventListener('click', () => {
-            const text = textInput.value;
-            if (!text) return;
-            
-            // iFrame制約対応用のコピー処理
-            const tempTextArea = document.createElement('textarea');
-            tempTextArea.value = text;
-            document.body.appendChild(tempTextArea);
-            tempTextArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempTextArea);
-
-            showToast('テキストをコピーしました');
+        resetZoomBtn.addEventListener('click', () => {
+            zoomLevel = 1.0;
+            applyZoom();
         });
 
-        // --- Core Functions ---
+        function applyZoom() {
+            canvasWrapper.style.transform = `scale(${zoomLevel})`;
+        }
 
-        function handleImageUpload(e) {
+        // --- Core Application Logic ---
+
+        // サンプル画像読込
+        function loadSampleImage(key) {
+            const data = MOCK_TEXTBOOK_DATA[key];
+            if (!data) return;
+
+            showScanningAnimation(() => {
+                sourceImage.src = data.bgUrl;
+                sourceImage.onload = () => {
+                    emptyPlaceholder.classList.add('hidden');
+                    canvasWrapper.classList.remove('hidden');
+                    imageDimensions.textContent = `${sourceImage.naturalWidth} x ${sourceImage.naturalHeight} px`;
+
+                    currentDetectedData = data.items;
+                    renderOverlays();
+                    renderKanjiList();
+                    showToast(`「${data.title}」のレイアウトを解析しました`);
+                };
+            });
+        }
+
+        // ファイルアップロード処理
+        function handleFileSelect(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            // プレビュー表示
             const reader = new FileReader();
-            reader.onload = function(event) {
-                imagePreview.src = event.target.result;
-                imagePreview.classList.remove('hidden');
-                uploadPlaceholder.classList.add('hidden');
-                
-                // OCR解析シミュレーションを開始
-                simulateOCR();
+            reader.onload = function(evt) {
+                showScanningAnimation(() => {
+                    sourceImage.src = evt.target.result;
+                    sourceImage.onload = () => {
+                        emptyPlaceholder.classList.add('hidden');
+                        canvasWrapper.classList.remove('hidden');
+                        imageDimensions.textContent = `${sourceImage.naturalWidth} x ${sourceImage.naturalHeight} px`;
+
+                        // アップロード画像に対するレイアウト・漢字自動抽出（シミュレーション）
+                        currentDetectedData = generateAutoLayoutDetections();
+                        renderOverlays();
+                        renderKanjiList();
+                        showToast('画像から漢字の位置と読みを自動割り振りました');
+                    };
+                });
             };
             reader.readAsDataURL(file);
         }
 
-        // OCR処理を模倣（実際の実装ではTesseract.jsやGoogle Cloud Vision API等を呼び出せます）
-        function simulateOCR() {
-            ocrLoading.classList.remove('hidden');
-            
+        // スキャンアニメーション表示
+        function showScanningAnimation(callback) {
+            scanningOverlay.classList.remove('hidden');
             setTimeout(() => {
-                ocrLoading.classList.add('hidden');
-                
-                // サンプルテキストまたは擬似認識テキストを入力欄へ設定
-                const randomSample = Math.random() > 0.5 ? SAMPLE_TEXTS[1] : SAMPLE_TEXTS[2];
-                textInput.value = randomSample;
-                
-                // ルビの自動生成
-                generateVerticalFurigana();
-                showToast('教科書のテキストを認識しました');
-            }, 1500);
+                scanningOverlay.classList.add('hidden');
+                if (callback) callback();
+            }, 1200);
         }
 
-        // サンプルテキスト読込
-        function loadSample(id) {
-            textInput.value = SAMPLE_TEXTS[id];
-            imagePreview.classList.add('hidden');
-            uploadPlaceholder.classList.remove('hidden');
-            generateVerticalFurigana();
-            showToast('サンプルを読み込みました');
-        }
+        // 汎用画像を読み込んだ際に縦書き配置を擬似推定生成するアルゴリズム
+        function generateAutoLayoutDetections() {
+            const sampleKanjis = [
+                { kanji: "国", ruby: "こく" }, { kanji: "語", ruby: "ご" },
+                { kanji: "教", ruby: "きょう" }, { kanji: "科", ruby: "か" },
+                { kanji: "書", ruby: "しょ" }, { kanji: "縦", ruby: "たて" },
+                { kanji: "書", ruby: "がき" }, { kanji: "文", ruby: "ぶん" },
+                { kanji: "章", ruby: "しょう" }, { kanji: "読", ruby: "よ" },
+                { kanji: "解", ruby: "かい" }
+            ];
 
-        function generateVerticalFurigana() {
-            const text = textInput.value.trim();
+            const detected = [];
+            // 右端から左側へ向けて縦書き行を配置
+            let columns = 3;
+            let rowsPerCol = 4;
 
-            if (!text) {
-                emptyState.classList.remove('hidden');
-                verticalOutputContainer.classList.add('hidden');
-                return;
-            }
-
-            emptyState.classList.add('hidden');
-            verticalOutputContainer.classList.remove('hidden');
-
-            // 簡易ルビ振りエンジン (漢字ブロック検出 & マッチング)
-            let formattedHtml = text.split('\n').map(line => {
-                if (!line.trim()) return '<div class="h-8"></div>'; // 改行スペース
-
-                let processedLine = '';
-                let i = 0;
-
-                while (i < line.length) {
-                    let matched = false;
-
-                    // 辞書に一致する熟語を探す（長い単語を優先）
-                    for (let len = 6; len >= 1; len--) {
-                        if (i + len <= line.length) {
-                            const sub = line.substr(i, len);
-                            if (MOCK_DICTIONARY[sub]) {
-                                processedLine += `<ruby>${sub}<rt>${MOCK_DICTIONARY[sub]}</rt></ruby>`;
-                                i += len;
-                                matched = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    // 辞書にない場合は漢字単体判定
-                    if (!matched) {
-                        const char = line[i];
-                        if (isKanji(char)) {
-                            // ダミールビ生成（実用時はKuromoji等を利用）
-                            const mockFurigana = getMockFuriganaForChar(char);
-                            processedLine += `<ruby>${char}<rt>${mockFurigana}</rt></ruby>`;
-                        } else {
-                            // 句読点・かなはそのまま出力
-                            processedLine += formatPunctuation(char);
-                        }
-                        i++;
-                    }
+            for (let c = 0; c < columns; c++) {
+                for (let r = 0; r < rowsPerCol; r++) {
+                    const item = sampleKanjis[(c * rowsPerCol + r) % sampleKanjis.length];
+                    detected.push({
+                        kanji: item.kanji,
+                        ruby: item.ruby,
+                        x: 82.0 - (c * 18.0), // 右から左へ
+                        y: 18.0 + (r * 15.0), // 上から下へ
+                        w: 6.0,
+                        h: 5.5
+                    });
                 }
-
-                return `<p class="mb-6">${processedLine}</p>`;
-            }).join('');
-
-            verticalOutput.innerHTML = formattedHtml;
-        }
-
-        // 漢字判定関数
-        function isKanji(ch) {
-            return (ch >= '一' && ch <= '龥') || (ch >= '豈' && ch <= '鶴');
-        }
-
-        // 単一漢字への仮ルビ付与（デモ用アルゴリズム）
-        function getMockFuriganaForChar(kanji) {
-            const commonReadings = {
-                "激": "げき", "怒": "ど", "必": "かなら", "邪": "じゃ", "智": "ち",
-                "暴": "ぼう", "虐": "ぎゃく", "除": "のぞ", "決": "けつ", "意": "い",
-                "政": "せい", "治": "じ", "村": "むら", "牧": "ぼく", "人": "じん",
-                "笛": "ふえ", "吹": "ふ", "羊": "ひつじ", "遊": "あそ", "暮": "く",
-                "対": "たい", "倍": "ばい", "敏": "びん", "感": "かん", "治": "おさ",
-                "太": "たい", "宰": "さい", "治": "おさむ"
-            };
-            return commonReadings[kanji] || "・";
-        }
-
-        // 縦書き時の句読点・記号の整形
-        function formatPunctuation(char) {
-            if (char === '―' || char === 'ー') {
-                return '<span class="inline-block transform rotate-90">｜</span>';
             }
-            return char;
+            return detected;
         }
 
-        // フォントサイズ更新
-        function updateFontSize() {
-            verticalOutput.style.fontSize = `${currentFontSize}px`;
-            fontSizeLabel.textContent = `${currentFontSize}px`;
+        // オーバーレイ（漢字指示枠 & 漢字の「右横」ルビ）描画
+        function renderOverlays() {
+            boxOverlay.innerHTML = '';
+            rubyOverlay.innerHTML = '';
+
+            currentDetectedData.forEach((item, idx) => {
+                // 1. 漢字位置バウンディングボックス
+                const box = document.createElement('div');
+                box.className = 'kanji-box';
+                box.style.left = `${item.x}%`;
+                box.style.top = `${item.y}%`;
+                box.style.width = `${item.w}%`;
+                box.style.height = `${item.h}%`;
+                box.id = `box-${idx}`;
+                boxOverlay.appendChild(box);
+
+                // 2. 漢字の「右横」に配置するルビタグ（縦書き表記準拠）
+                const rubyTag = document.createElement('div');
+                rubyTag.className = 'ruby-tag';
+                // 漢字の右端中央に配置 (x + w/2 近辺, y + h/2)
+                rubyTag.style.left = `${item.x + item.w + 0.8}%`; 
+                rubyTag.style.top = `${item.y + (item.h / 2)}%`;
+                rubyTag.textContent = item.ruby;
+                rubyTag.style.fontSize = `${currentRubyFontSize}px`;
+                rubyTag.style.color = currentRubyColor;
+                rubyTag.title = `「${item.kanji}」の読みを編集`;
+
+                // ルビタップで編集モーダル/プロンプト
+                rubyTag.onclick = () => editRubyPrompt(idx);
+
+                rubyOverlay.appendChild(rubyTag);
+            });
         }
 
-        // ルビの色変更
+        // ルビテキストのリアルタイム更新
+        function updateRubyStyles() {
+            const tags = rubyOverlay.querySelectorAll('.ruby-tag');
+            tags.forEach(tag => {
+                tag.style.fontSize = `${currentRubyFontSize}px`;
+                tag.style.color = currentRubyColor;
+            });
+        }
+
+        // ルビの色の変更
         function setRubyColor(color) {
-            const style = document.createElement('style');
-            style.innerHTML = `rt { color: ${color} !important; }`;
-            document.head.appendChild(style);
+            currentRubyColor = color;
+            updateRubyStyles();
             showToast('ルビの色を変更しました');
         }
 
-        // トースト通知表示
+        // 検出漢字一覧リストの描画
+        function renderKanjiList() {
+            kanjiCount.textContent = `${currentDetectedData.length}件`;
+            
+            if (currentDetectedData.length === 0) {
+                kanjiList.innerHTML = '<p class="text-stone-500 text-center py-6">漢字が検出されていません</p>';
+                return;
+            }
+
+            kanjiList.innerHTML = currentDetectedData.map((item, idx) => `
+                <div class="flex items-center justify-between p-2 bg-stone-800/60 border border-stone-700/50 rounded-lg hover:border-amber-500/50 transition cursor-pointer" onclick="highlightKanji(${idx})">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-6 h-6 bg-stone-700 rounded text-amber-300 font-bold flex items-center justify-center font-mincho text-sm">${item.kanji}</span>
+                        <i class="ri-arrow-right-s-line text-stone-500"></i>
+                        <span class="text-amber-400 font-bold text-xs">${item.ruby}</span>
+                    </div>
+                    <button onclick="event.stopPropagation(); editRubyPrompt(${idx})" class="p-1 text-stone-400 hover:text-amber-400 transition" title="編集">
+                        <i class="ri-edit-line"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // ルビ手動編集
+        function editRubyPrompt(index) {
+            const item = currentDetectedData[index];
+            const newRuby = prompt(`「${item.kanji}」の読み（ふりがな）を入力してください:`, item.ruby);
+            if (newRuby !== null && newRuby.trim() !== "") {
+                item.ruby = newRuby.trim();
+                renderOverlays();
+                renderKanjiList();
+                showToast(`「${item.kanji}」のルビを「${item.ruby}」に更新しました`);
+            }
+        }
+
+        // リスト選択時のハイライト強調
+        function highlightKanji(index) {
+            const boxes = boxOverlay.querySelectorAll('.kanji-box');
+            boxes.forEach((box, i) => {
+                if (i === index) {
+                    box.style.backgroundColor = 'rgba(245, 158, 11, 0.4)';
+                    box.style.borderColor = '#f59e0b';
+                    box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    box.style.backgroundColor = 'rgba(239, 68, 68, 0.12)';
+                    box.style.borderColor = 'rgba(239, 68, 68, 0.6)';
+                }
+            });
+        }
+
+        // トースト通知
         function showToast(message) {
             const toast = document.getElementById('toast');
             const toastMsg = document.getElementById('toast-msg');
             toastMsg.textContent = message;
-            
+
             toast.classList.remove('translate-y-20', 'opacity-0');
             toast.classList.add('translate-y-0', 'opacity-100');
 
@@ -500,9 +591,10 @@
             }, 2500);
         }
 
-        // 初期表示の設定
+        // 初期化処理
         window.onload = function() {
-            loadSample(1);
+            // 初期状態はサンプル1を読み込み
+            loadSampleImage('kokugo1');
         };
     </script>
 </body>
